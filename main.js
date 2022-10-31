@@ -14,6 +14,8 @@ async function main() {
 
   const sftp = new Client();
 
+  console.log((new Date()).toLocaleString(), 'Syncing starts...')
+
   await sftp.connect({
     host: process.env.sftpHost,
     port: process.env.sftpPort,
