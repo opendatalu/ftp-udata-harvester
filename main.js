@@ -14,17 +14,27 @@ async function main() {
     username: process.env.sftpUser, 
     password: process.env.sftpPass
   })
-  const filesOnSFTP = (await sftp.list(process.env.sftpPath)).map(e => e.name.toLowerCase())
+
+  // udata seems to be case insensitive, we need to manage this
+  const fileNamesOnSFTP = await sftp.list(process.env.sftpPath)
+  const caseInsensitiveFilesOnSFTP = (fileNamesOnSFTP).map(e => e.name.toLowerCase())
+  const mapping = {}
+  fileNamesOnSFTP.forEach(e => {
+    mapping[e.name.toLowerCase()] = e
+  });
+
   const dataset = await getDataset(process.env.odpDatasetId)
   const filesOnODP = new Set(dataset.resources.map(e => e.title))
-  let toAdd = [... new Set(filesOnSFTP.filter(x => !filesOnODP.has(x)))]
+  let toAdd = [... new Set(caseInsensitiveFilesOnSFTP.filter(x => !filesOnODP.has(x)))]
   if (process.env.sftpRegex !== undefined) {
     toAdd = toAdd.filter(x => x.match(process.env.sftpRegex))
   }
-  console.log('Files do be uploaded:', toAdd)
+  // sort files by modification date
+  toAdd = toAdd.sort((a,b) => { return mapping[a].modifyTime - mapping[b].modifyTime })
+
   for (const e of toAdd) {
     // get file
-    const file = await sftp.get(process.env.sftpPath+'/'+e)
+    const file = await sftp.get(process.env.sftpPath+'/'+mapping[e].name)
     // upload file
     const result = await uploadResource(e, file, process.env.odpDatasetId, process.env.mimeType)
 
