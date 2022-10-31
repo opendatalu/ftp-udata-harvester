@@ -3,6 +3,12 @@ import * as dotenv from 'dotenv'
 import {  getDataset, uploadResource } from './odp.js'
 
 
+// get the udata string for a given input file name
+function toODPNames(name) {
+  return name.toLowerCase().replaceAll('_', '-')
+}
+
+
 async function main() {
   dotenv.config()
 
@@ -15,23 +21,25 @@ async function main() {
     password: process.env.sftpPass
   })
 
-  // udata seems to be case insensitive, we need to manage this
+  // udata is transforming all file names to its own format
   const fileNamesOnSFTP = await sftp.list(process.env.sftpPath)
-  const caseInsensitiveFilesOnSFTP = (fileNamesOnSFTP).map(e => e.name.toLowerCase())
+  const caseInsensitiveFilesOnSFTP = (fileNamesOnSFTP).map(e => toODPNames(e.name))
   const mapping = {}
   fileNamesOnSFTP.forEach(e => {
-    mapping[e.name.toLowerCase()] = e
+    mapping[toODPNames(e.name)] = e
   });
 
   const dataset = await getDataset(process.env.odpDatasetId)
   const filesOnODP = new Set(dataset.resources.map(e => e.title))
+
   let toAdd = [... new Set(caseInsensitiveFilesOnSFTP.filter(x => !filesOnODP.has(x)))]
+
   if (process.env.sftpRegex !== undefined) {
     toAdd = toAdd.filter(x => x.match(process.env.sftpRegex))
   }
   // sort files by modification date
   toAdd = toAdd.sort((a,b) => { return mapping[a].modifyTime - mapping[b].modifyTime })
-
+  console.log("Files to be uploaded:", toAdd)
   for (const e of toAdd) {
     // get file
     const file = await sftp.get(process.env.sftpPath+'/'+mapping[e].name)
