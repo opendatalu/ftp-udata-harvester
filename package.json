@@ -1,0 +1,18 @@
+{
+  "name": "sftp-udata-harvester",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "main": "node main.js"
+  },
+  "author": "Information and Press Service",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "node-fetch": "^3.2.10",
+    "ssh2-sftp-client": "^9.0.4",
+    "throttled-queue": "^2.1.4"
+  }
+}
