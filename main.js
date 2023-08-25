@@ -1,5 +1,6 @@
 import Client from 'ssh2-sftp-client'
 import * as dotenv from 'dotenv'
+import process from 'node:process';
 import {  getDataset, uploadResource } from './odp.js'
 
 
@@ -56,4 +57,4 @@ async function main() {
 }
 
 
-main().then(() => {console.log((new Date()).toLocaleString(), 'Sync successful')}).catch(e => {console.error(e)})
+main().then(() => {console.log((new Date()).toLocaleString(), 'Sync successful')}).catch(e => {console.error(e); process.exitCode = 1;})
