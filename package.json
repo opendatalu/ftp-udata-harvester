@@ -10,6 +10,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "basic-ftp": "^5.0.3",
     "dotenv": "^16.0.3",
     "node-fetch": "^3.2.10",
     "ssh2-sftp-client": "^9.0.4",
