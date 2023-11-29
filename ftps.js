@@ -1,8 +1,7 @@
 import * as ftp from "basic-ftp"
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
-
-console.log('ftps')
+import * as path from 'path'
 
 dotenv.config()
 
@@ -10,7 +9,6 @@ let ftps
 async function connect() {
     ftps = new ftp.Client()
     ftps.ftp.verbose = false
-    console.log( )
     try {
         return await ftps.access({
             host: process.env.ftpHost,
@@ -25,8 +23,32 @@ async function connect() {
     }    
 }
 
-async function list(path) {
-    return (await ftps.list(path)).filter(e => e.type == 1)
+function baseNames(files) {
+    return files.map(e => { e.name = e.name.startsWith(process.env.ftpPath)?e.name.slice(process.env.ftpPath.length+1):e.name; return e})
+}
+
+function addModifyTime(files) {
+    return files.map(e => {e.modifyTime = e.modifiedAt; return e})
+}
+
+async function list(dir) {
+    const dirents = await ftps.list(dir)
+    let result = []
+    if (process.env.recursive === "true") {
+        let files = []
+
+        // cannot use Promise.all() here, the ftp library only accepts a sequential execution of the promises
+        for (const dirent of dirents) {
+            dirent.name = dir + '/' +dirent.name
+            const result = (dirent.type == 2) ? await list(dirent.name) : dirent
+            files.push(result)
+        }
+
+        result = Array.prototype.concat(...files)
+    } else {
+        result = dirents.filter(e => {return e.type == 1})
+    }
+    return addModifyTime(baseNames(result))
 }
 
 async function get(path) {

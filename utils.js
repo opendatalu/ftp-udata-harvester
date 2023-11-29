@@ -10,4 +10,9 @@ function fetchThrottle(...params) {
     return throttle(() => {return fetch(...params)})
 } 
 
-export { fetchThrottle }
+let log = function(){}
+if (process.env.debug === "true") {
+  log = console.log
+}
+
+export { fetchThrottle, log }

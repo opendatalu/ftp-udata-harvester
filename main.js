@@ -1,62 +1,128 @@
 import * as dotenv from 'dotenv'
-import process from 'node:process';
-import {  getDataset, uploadResource } from './odp.js'
+import process from 'node:process'
+import { getDataset, uploadResource } from './odp.js'
+import Path from 'path'
+import { log } from './utils.js'
+
+let crypto
+try {
+  crypto = await import('node:crypto')
+} catch (err) {
+  console.error('crypto support is disabled!')
+}
 
 let ftp
-if (process.env.ftpProtocol == "sftp") {
+if (process.env.ftpProtocol === 'sftp') {
   ftp = await import('./sftp.js')
 } else {
   ftp = await import('./ftps.js')
 }
 
 // get the udata string for a given input file name
-function toODPNames(name) {
-  return name.toLowerCase().replaceAll('_', '-')
+function toODPNames (name) {
+  return Path.basename(name).toLowerCase().replaceAll(' ', '-').replaceAll('_', '-').replace(/--+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+function getFilenameFromURL (url) {
+  const pathName = new URL(url).pathname
+  return pathName.substring(pathName.lastIndexOf('/') + 1)
+}
 
-async function main() {
+function getResourceMeta (filename, resources) {
+  const resource = resources.filter(e => { return getFilenameFromURL(e.url) === filename })
+  if (resource.length === 0) {
+    throw new Error('Metadata not found for the file: ' + filename)
+  }
+  if (resource.length !== 1) {
+    throw new Error('Multiple metadata found for the file: ' + filename)
+  }
+  return resource[0]
+}
+
+async function main () {
   dotenv.config()
 
-  console.log((new Date()).toLocaleString(), 'Syncing starts...')
+  log((new Date()).toLocaleString(), 'Syncing starts...')
 
   await ftp.connect()
-  
-  console.log('Connection established')
+
+  log('Connection established')
 
   // udata is transforming all file names to its own format
-  const fileNamesOnSFTP = await ftp.list(process.env.ftpPath)
+  const fileNamesOnFTP = await ftp.list(process.env.ftpPath)
 
-  console.log(fileNamesOnSFTP)
-  const caseInsensitiveFilesOnSFTP = (fileNamesOnSFTP).map(e => toODPNames(e.name))
+  const caseInsensitiveFilesOnFTP = fileNamesOnFTP.map(e => toODPNames(e.name))
   const mapping = {}
-  fileNamesOnSFTP.forEach(e => {
+  fileNamesOnFTP.forEach(e => {
     mapping[toODPNames(e.name)] = e
-  });
+  })
 
   const dataset = await getDataset(process.env.odpDatasetId)
   const filesOnODP = new Set(dataset.resources.map(e => e.title))
 
-  let toAdd = [... new Set(caseInsensitiveFilesOnSFTP.filter(x => !filesOnODP.has(x)))]
+  let toAdd = [...new Set(caseInsensitiveFilesOnFTP.filter(x => !filesOnODP.has(x)))]
 
   if (process.env.ftpRegex !== undefined) {
     toAdd = toAdd.filter(x => x.match(process.env.ftpRegex))
   }
   // sort files by modification date
-  toAdd = toAdd.sort((a,b) => { return mapping[a].modifyTime - mapping[b].modifyTime })
-  console.log("Files to be uploaded:", toAdd)
+  toAdd = toAdd.sort((a, b) => { return mapping[a].modifyTime - mapping[b].modifyTime })
+
+  let toUpdate = []
+  if (process.env.overwrite === 'true') {
+    toUpdate = [...new Set(caseInsensitiveFilesOnFTP.filter(x => filesOnODP.has(x)))]
+  }
+
+  log('Files to add:', toAdd)
+  log('Files to update:', toUpdate)
   for (const e of toAdd) {
     // get file
-    const file = await ftp.get(process.env.ftpPath+'/'+mapping[e].name)
+    const file = await ftp.get(process.env.ftpPath + '/' + mapping[e].name)
     // upload file
     const result = await uploadResource(e, file, process.env.odpDatasetId, process.env.mimeType)
 
     // display status
     const status = (Object.keys(result).length !== 0)
-    console.log('Resource upload', (result)?'succeeded': 'failed', 'for', e)
+    log('Resource upload', (status) ? 'succeeded' : 'failed', 'for', e)
+  }
+  for (const e of toUpdate) {
+    // get file
+    const file = await ftp.get(process.env.ftpPath + '/' + mapping[e].name)
+    // get Meta
+    const meta = getResourceMeta(e, dataset.resources)
+
+    // check if the file needs to be updated
+    const algo = meta.checksum.type
+    const odpHash = meta.checksum.value
+
+    let update = true
+
+    try {
+      const hash = crypto.createHash(algo)
+      hash.update(file)
+      const fileHash = hash.digest('hex')
+      // console.log(odpHash, fileHash)
+      if (odpHash === fileHash) {
+        update = false
+        log('File ' + e + ' is already up to date.')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+
+    if (update) {
+      // upload file
+      const result = await odp.updateResource(e, file, process.env.odpDatasetId, meta.id, process.env.mimeType)
+
+      // update meta (udata bug?)
+      const resultMeta = await odp.updateResourceMeta(process.env.odpDatasetId, meta.id, meta.title, meta.description)
+
+      // display status
+      const status = (Object.keys(result).length !== 0) && (Object.keys(resultMeta).length !== 0)
+      log('Resource update', (status) ? 'succeeded' : 'failed', 'for', e)
+    }
   }
   return ftp.end()
 }
 
-
-main().then(() => {console.log((new Date()).toLocaleString(), 'Sync successful')}).catch(e => {console.error(e); process.exitCode = 1;})
+main().then(() => { log((new Date()).toLocaleString(), 'Sync successful') }).catch(e => { console.error(e); process.exitCode = 1 })

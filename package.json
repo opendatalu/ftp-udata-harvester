@@ -15,5 +15,12 @@
     "node-fetch": "^3.2.10",
     "ssh2-sftp-client": "^9.0.4",
     "throttled-queue": "^2.1.4"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-n": "^16.3.1",
+    "eslint-plugin-promise": "^6.1.1"
   }
 }
