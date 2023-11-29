@@ -12,13 +12,17 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 - odpDatasetId: ID of the dataset where the files will be uploaded
 - callRateNrCalls: this setting and the following are related to rate limiting. This is the max number of calls per period. By default 1.
 - callRateDuration: this setting defines the duration of the period for rate limiting in milliseconds. By default 1000ms.
-- sftpHost: host name of the sftp server
-- sftpPort: port of the sftp server
-- sftpUser: login
-- sftpPass: password
-- sftpPath: absolute path to the folder to be synced
-- sftpRegex: Optional. Define a regex to filter the filenames you want to be synced.
+- ftpHost: host name of the ftp server
+- ftpPort: port of the ftp server
+- ftpUser: login
+- ftpPass: password
+- ftpPath: absolute path to the folder to be synced
+- ftpRegex: Optional. Define a regex to filter the filenames you want to be synced.
+- ftpProtocol: one of the supported protocols: sftp or ftps
 - mimeType: MIME type of the files which are synced.
+- recursive: should we synchronize all the files in all subfolders under ftpPath recursively? WARNING: if multiple files in subfolders have the same name, only one will be kept.
+- overwrite: should existing files on data.public.lu be updated?
+- debug: should we display debug information?
 
 ## Run
 
