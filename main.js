@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv'
 import process from 'node:process'
-import { getDataset, uploadResource } from './odp.js'
+import * as odp from './odp.js'
 import Path from 'path'
 import { log } from './utils.js'
 
@@ -14,8 +14,10 @@ try {
 let ftp
 if (process.env.ftpProtocol === 'sftp') {
   ftp = await import('./sftp.js')
-} else {
+} else if (process.env.ftpProtocol === 'ftps') {
   ftp = await import('./ftps.js')
+} else {
+  ftp = await import('./local.js')
 }
 
 // get the udata string for a given input file name
@@ -57,7 +59,7 @@ async function main () {
     mapping[toODPNames(e.name)] = e
   })
 
-  const dataset = await getDataset(process.env.odpDatasetId)
+  const dataset = await odp.getDataset(process.env.odpDatasetId)
   const filesOnODP = new Set(dataset.resources.map(e => e.title))
 
   let toAdd = [...new Set(caseInsensitiveFilesOnFTP.filter(x => !filesOnODP.has(x)))]
@@ -79,7 +81,7 @@ async function main () {
     // get file
     const file = await ftp.get(process.env.ftpPath + '/' + mapping[e].name)
     // upload file
-    const result = await uploadResource(e, file, process.env.odpDatasetId, process.env.mimeType)
+    const result = await odp.uploadResource(e, file, process.env.odpDatasetId, process.env.mimeType)
 
     // display status
     const status = (Object.keys(result).length !== 0)

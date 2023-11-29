@@ -18,9 +18,9 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 - ftpPass: password
 - ftpPath: absolute path to the folder to be synced
 - ftpRegex: Optional. Define a regex to filter the filenames you want to be synced.
-- ftpProtocol: one of the supported protocols: sftp or ftps
+- ftpProtocol: one of the supported protocols: sftp or ftps or local for local files
 - mimeType: MIME type of the files which are synced.
-- recursive: should we synchronize all the files in all subfolders under ftpPath recursively? WARNING: if multiple files in subfolders have the same name, only one will be kept.
+- recursive: should we synchronize all the files in all subfolders under ftpPath recursively? WARNING: if multiple files in subfolders have the same name, only one will be kept. It has also only be tested on ftps.
 - overwrite: should existing files on data.public.lu be updated?
 - debug: should we display debug information?
 

@@ -1,6 +1,7 @@
 import * as ftp from 'basic-ftp'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
+import { baseNames } from './utils.js'
 
 dotenv.config()
 
@@ -19,10 +20,6 @@ async function connect () {
   } catch (err) {
     console.log(err)
   }
-}
-
-function baseNames (files) {
-  return files.map(e => { e.name = e.name.startsWith(process.env.ftpPath) ? e.name.slice(process.env.ftpPath.length + 1) : e.name; return e })
 }
 
 function addModifyTime (files) {
@@ -50,6 +47,7 @@ async function list (dir) {
 }
 
 async function get (path) {
+  // FIXME: this could probably be done with a buffer instead of a temporary file
   const tmp = './tmpfile'
   await ftps.downloadTo(tmp, path)
   const content = fs.readFileSync(tmp)

@@ -15,4 +15,8 @@ if (process.env.debug === 'true') {
   log = console.log
 }
 
-export { fetchThrottle, log }
+function baseNames (files) {
+  return files.map(e => { e.name = e.name.startsWith(process.env.ftpPath) ? e.name.slice(process.env.ftpPath.length + 1) : e.name; return e })
+}
+
+export { fetchThrottle, log, baseNames }
