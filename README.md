@@ -24,10 +24,14 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 - overwrite: should existing files on data.public.lu be updated?
 - debug: should we display debug information?
 
+## Proxy
+If your network connection depends on a proxy, you must set the `https_proxy` environment variable.
+Example: `export https_proxy="http://myproxy:8080"`
+
 ## Run
 
-You can launch the synchronization with the command `npm run main`. 
-The script named `run-win.sh` launches the synchronization on Windows and creates a log file. Bash.exe is needed, it can be found in [git for Windows](https://git-scm.com/download/win). 
+You can launch the synchronization with the command `npm run main`.
+The script named `run-win.sh` launches the synchronization on Windows and creates a log file. Bash.exe is needed, it can be found in [git for Windows](https://git-scm.com/download/win).
 
 ## License
 This software is (c) [Information and press service](https://sip.gouvernement.lu/en.html) of the luxembourgish government and licensed under the MIT license.
