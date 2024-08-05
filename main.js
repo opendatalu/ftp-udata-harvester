@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv'
 import process from 'node:process'
 import * as odp from './odp.js'
 import Path from 'path'
+import { readFileSync } from 'fs'
 import { log } from './utils.js'
 
 let crypto
@@ -41,17 +42,9 @@ function getResourceMeta (filename, resources) {
   return resource[0]
 }
 
-async function main () {
-  dotenv.config()
-
-  log((new Date()).toLocaleString(), 'Syncing starts...')
-
-  await ftp.connect()
-
-  log('Connection established')
-
+async function sync (source, dest, ftp) {
   // udata is transforming all file names to its own format
-  const fileNamesOnFTP = await ftp.list(process.env.ftpPath)
+  const fileNamesOnFTP = await ftp.list(source)
 
   const caseInsensitiveFilesOnFTP = fileNamesOnFTP.map(e => toODPNames(e.name))
   const mapping = {}
@@ -59,7 +52,7 @@ async function main () {
     mapping[toODPNames(e.name)] = e
   })
 
-  const dataset = await odp.getDataset(process.env.odpDatasetId)
+  const dataset = await odp.getDataset(dest)
   const filesOnODP = new Set(dataset.resources.map(e => e.title))
 
   let toAdd = [...new Set(caseInsensitiveFilesOnFTP.filter(x => !filesOnODP.has(x)))]
@@ -79,9 +72,9 @@ async function main () {
   log('Files to update:', toUpdate)
   for (const e of toAdd) {
     // get file
-    const file = await ftp.get(process.env.ftpPath + '/' + mapping[e].name)
+    const file = await ftp.get(mapping[e].name)
     // upload file
-    const result = await odp.uploadResource(e, file, process.env.odpDatasetId, process.env.mimeType)
+    const result = await odp.uploadResource(e, file, dest, process.env.mimeType)
 
     // display status
     const status = (Object.keys(result).length !== 0)
@@ -89,7 +82,7 @@ async function main () {
   }
   for (const e of toUpdate) {
     // get file
-    const file = await ftp.get(process.env.ftpPath + '/' + mapping[e].name)
+    const file = await ftp.get(mapping[e].name)
     // get Meta
     const meta = getResourceMeta(e, dataset.resources)
 
@@ -114,17 +107,40 @@ async function main () {
 
     if (update) {
       // upload file
-      const result = await odp.updateResource(e, file, process.env.odpDatasetId, meta.id, process.env.mimeType)
+      const result = await odp.updateResource(e, file, dest, meta.id, process.env.mimeType)
 
       // update meta (udata bug?)
-      const resultMeta = await odp.updateResourceMeta(process.env.odpDatasetId, meta.id, meta.title, meta.description)
+      const resultMeta = await odp.updateResourceMeta(dest, meta.id, meta.title, meta.description)
 
       // display status
       const status = (Object.keys(result).length !== 0) && (Object.keys(resultMeta).length !== 0)
       log('Resource update', (status) ? 'succeeded' : 'failed', 'for', e)
     }
   }
+}
+
+async function main () {
+  dotenv.config()
+
+  log((new Date()).toLocaleString(), 'Syncing starts...')
+
+  await ftp.connect()
+
+  log('Connection established')
+
+  if (process.env.ftpMapping === 'true') {
+    const mapping = JSON.parse(readFileSync('./mapping.json'))
+    const sources = Object.keys(mapping)
+    for (let i = 0; i < sources.length; i++) {
+      const source = sources[i]
+      const dest = mapping[source]
+      await sync(source, dest, ftp)
+    }
+  } else {
+    await sync(process.env.ftpPath, process.env.odpDatasetId, ftp)
+  }
+
   return ftp.end()
 }
 
-main().then(() => { log((new Date()).toLocaleString(), 'Sync successful') }).catch(e => { console.error(e); process.exitCode = 1 })
+main().then(() => { log((new Date()).toLocaleString(), 'Sync successful') }).catch(e => { console.error(e); ftp.end(); process.exitCode = 1 })

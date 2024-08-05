@@ -19,6 +19,7 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 - ftpPath: absolute path to the folder to be synced
 - ftpRegex: Optional. Define a regex to filter the filenames you want to be synced.
 - ftpProtocol: one of the supported protocols: sftp or ftps or local for local files
+- ftpMapping: if true, the script will load from the file mapping.json multiple couples (ftpPath, idpDatasetId). They should be stored in mapping.json like the following `{"source path 1": "destination id 1", "source path 2": "destination id 2", ...}`. When this option is in use, the variables odpDatasetId and ftpPath are inactive.
 - mimeType: MIME type of the files which are synced.
 - recursive: should we synchronize all the files in all subfolders under ftpPath recursively? WARNING: if multiple files in subfolders have the same name, only one will be kept. It has also only be tested on ftps.
 - overwrite: should existing files on data.public.lu be updated?

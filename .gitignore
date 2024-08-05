@@ -5,3 +5,4 @@ log.txt
 tmpfile
 .env.*
 !.env.example
+mapping.json
