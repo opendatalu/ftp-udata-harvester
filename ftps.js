@@ -48,18 +48,18 @@ async function list (dir) {
 
 // inspired from StackOverflow...
 // https://stackoverflow.com/questions/10623798/how-do-i-read-the-contents-of-a-node-js-stream-into-a-string-variable/63361543#63361543
-function streamToString (stream) {
+function streamToBuffer (stream) {
   const chunks = []
   return new Promise((resolve, reject) => {
     stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
     stream.on('error', (err) => reject(err))
-    stream.on('end', () => resolve(Buffer.concat(chunks).toString('binary')))
+    stream.on('end', () => resolve(Buffer.concat(chunks)))
   })
 }
 
 async function get (path) {
   const tmp = new PassThrough()
-  const content = streamToString(tmp)
+  const content = streamToBuffer(tmp)
   const download = ftps.downloadTo(tmp, path)
 
   await Promise.all([content, download])
