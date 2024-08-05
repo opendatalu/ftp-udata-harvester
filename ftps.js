@@ -1,8 +1,7 @@
 import * as ftp from 'basic-ftp'
 import * as dotenv from 'dotenv'
-import * as fs from 'fs'
-import * as path from 'path'
 import { baseNames } from './utils.js'
+import { PassThrough } from 'stream'
 
 dotenv.config()
 
@@ -47,12 +46,23 @@ async function list (dir) {
   return addModifyTime(baseNames(result))
 }
 
-async function get (filePath) {
-  // FIXME: this could probably be done with a buffer instead of a temporary file
-  const tmp = './tmp/'+path.basename(filePath)
-  await ftps.downloadTo(tmp, filePath)
-  const content = fs.readFileSync(tmp)
-  fs.unlinkSync(tmp)
+// inspired from StackOverflow...
+// https://stackoverflow.com/questions/10623798/how-do-i-read-the-contents-of-a-node-js-stream-into-a-string-variable/63361543#63361543
+function streamToString (stream) {
+  const chunks = []
+  return new Promise((resolve, reject) => {
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+    stream.on('error', (err) => reject(err))
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('binary')))
+  })
+}
+
+async function get (path) {
+  const tmp = new PassThrough()
+  const content = streamToString(tmp)
+  const download = ftps.downloadTo(tmp, path)
+
+  await Promise.all([content, download])
   return content
 }
 
