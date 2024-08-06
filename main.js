@@ -43,8 +43,13 @@ function getResourceMeta (filename, resources) {
 }
 
 async function sync (source, dest, ftp) {
+  console.log('uploading all files in ' + source + ' to dataset id ' + dest)
   // udata is transforming all file names to its own format
-  const fileNamesOnFTP = await ftp.list(source)
+  let fileNamesOnFTP = await ftp.list(source)
+
+  if (process.env.demo === 'true') {
+    fileNamesOnFTP = fileNamesOnFTP.slice(0, 10)
+  }
 
   const caseInsensitiveFilesOnFTP = fileNamesOnFTP.map(e => toODPNames(e.name))
   const mapping = {}
