@@ -19,9 +19,9 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 - ftpPath: absolute path to the folder to be synced
 - ftpRegex: Optional. Define a regex to filter the filenames you want to be synced.
 - ftpProtocol: one of the supported protocols: sftp or ftps or local for local files
-- ftpMapping: if true, the script will load from the file mapping.json multiple couples (ftpPath, idpDatasetId). They should be stored in mapping.json like the following `{"source path 1": "destination id 1", "source path 2": "destination id 2", ...}`. When this option is in use, the variables odpDatasetId and ftpPath are inactive.
+- ftpMapping: if true, the script will load from the file mapping.json multiple couples (ftpPath, idpDatasetId). They should be stored in mapping.json like the following `{"destination id 1": "source path 1", "destination id 2": ["source path 2", "source path 3"], ...}`. When this option is in use, the variables odpDatasetId and ftpPath are inactive.
 - mimeType: MIME type of the files which are synced.
-- recursive: should we synchronize all the files in all subfolders under ftpPath recursively? WARNING: if multiple files in subfolders have the same name, only one will be kept. It has also only be tested on ftps.
+- recursive: should we synchronize all the files in all subfolders under ftpPath recursively?
 - overwrite: should existing files on data.public.lu be updated?
 - debug: should we display debug information?
 
@@ -33,6 +33,11 @@ Example: `export https_proxy="http://myproxy:8080"`
 
 You can launch the synchronization with the command `npm run main`.
 The script named `run-win.sh` launches the synchronization on Windows and creates a log file. Bash.exe is needed, it can be found in [git for Windows](https://git-scm.com/download/win).
+
+## Possible issues
+The synchronisation only works if there are no duplicates, which can appear if the recursive mode is activated.
+The open data portal will rename files to avoid download issues. This can lead to name collisions.
+In the case of duplicates or name collisions, the concerned files will not be synchronised.
 
 ## License
 This software is (c) [Information and press service](https://sip.gouvernement.lu/en.html) of the luxembourgish government and licensed under the MIT license.
