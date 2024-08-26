@@ -3,4 +3,11 @@ alert() {
         alert.sh "$@"
     fi
 }
-node.exe main.js >> ./log.txt 2>&1 || alert "${PWD##*/}" log.txt
+
+until node.exe main.js >> ./log.txt 2>&1 || alert "${PWD##*/}" log.txt
+do
+    echo "Restarting..."
+    sleep 1
+done
+
+
