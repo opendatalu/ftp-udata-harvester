@@ -132,4 +132,21 @@ async function updateResourceMeta (dsId, resId, title, desc) {
   }
 }
 
-export { getDataset, uploadResource, updateResource, updateResourceMeta }
+async function deleteResource (dsId, resId) {
+  try {
+    const res = await fetchThrottle(`${odpURL}/datasets/${dsId}/resources/${resId}/`, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-API-KEY': odpAPIKey
+      },
+      method: 'DELETE'
+    })
+    return res.status === 204
+  } catch (e) {
+    console.error(e)
+    return {}
+  }
+}
+
+export { getDataset, uploadResource, updateResource, updateResourceMeta, deleteResource }
