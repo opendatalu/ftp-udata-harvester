@@ -9,7 +9,8 @@ let crypto
 try {
   crypto = await import('node:crypto')
 } catch (err) {
-  console.error('crypto support is disabled!')
+  console.error('Error: crypto support is disabled!')
+  process.exit(1)
 }
 
 let ftp
@@ -54,10 +55,10 @@ function getFilenameFromURL (url) {
 function getResourceMeta (filename, resources) {
   const resource = resources.filter(e => { return getFilenameFromURL(e.url) === filename })
   if (resource.length === 0) {
-    throw new Error('Metadata not found for the file: ' + filename)
+    throw new Error('Error: Metadata not found for the file: ' + filename)
   }
   if (resource.length !== 1) {
-    throw new Error('Multiple metadata found for the file: ' + filename)
+    throw new Error('Error: Multiple metadata found for the file: ' + filename)
   }
   return resource[0]
 }
@@ -78,7 +79,7 @@ function removeDuplicatesOnFTP (files) {
   const duplicateKeys = []
   Object.keys(test).forEach(k => {
     if (test[k].length > 1) {
-      console.error('Duplicates found on FTP for', k)
+      console.error('Error: Duplicates found on FTP for', k)
       console.error(test[k])
       process.exitCode = 1
       duplicateKeys.push(k)
@@ -108,7 +109,7 @@ async function removeDuplicatesOnODP (dest) {
   })
   Object.keys(test).forEach(k => {
     if (test[k].length > 1) {
-      console.error('Duplicates found on ODP for', k)
+      console.error('Error: Duplicates found on ODP for', k)
       process.exitCode = 1
       test[k] = test[k].sort((a, b) => { return b.last_modified - a.last_modified })
       test[k].shift()
@@ -221,7 +222,12 @@ async function sync (source, dest, ftp) {
     const result = await odp.deleteResource(dest, meta.id)
 
     // display status
-    log('Resource deletion', (result) ? 'succeeded' : 'failed', 'for', e)
+    if (result) {
+      log('Resource deletion succeeded for', e)
+    } else {
+      console.error('Error: Resource deletion failed for', e)
+      process.exitCode = 1
+    }
   }
   for (const e of toAdd) {
     // get file
@@ -231,7 +237,12 @@ async function sync (source, dest, ftp) {
 
     // display status
     const status = (Object.keys(result).length !== 0)
-    log('Resource upload', (status) ? 'succeeded' : 'failed', 'for', e)
+    if (status) {
+      log('Resource upload succeeded for', e)
+    } else {
+      console.error('Error: Resource upload failed for', e)
+      process.exitCode = 1
+    }
   }
   for (const e of toUpdate) {
     // get file
@@ -245,17 +256,13 @@ async function sync (source, dest, ftp) {
 
     let update = true
 
-    try {
-      const hash = crypto.createHash(algo)
-      hash.update(file)
-      const fileHash = hash.digest('hex')
+    const hash = crypto.createHash(algo)
+    hash.update(file)
+    const fileHash = hash.digest('hex')
 
-      if (odpHash === fileHash) {
-        update = false
-        log('File ' + e + ' is already up to date.')
-      }
-    } catch (err) {
-      console.error(err)
+    if (odpHash === fileHash) {
+      update = false
+      log('File ' + e + ' is already up to date.')
     }
 
     if (update) {
@@ -267,7 +274,12 @@ async function sync (source, dest, ftp) {
 
       // display status
       const status = (Object.keys(result).length !== 0) && (Object.keys(resultMeta).length !== 0)
-      log('Resource update', (status) ? 'succeeded' : 'failed', 'for', e)
+      if (status) {
+        log('Resource update succeeded for', e)
+      } else {
+        console.error('Error: Resource update failed for', e)
+        process.exitCode = 1
+      }
     }
   }
 
