@@ -7,7 +7,11 @@ dotenv.config()
 // throttle API requests to avoid overloading the servers
 const throttle = throttledQueue(parseInt(process.env.callRateNrCalls), parseInt(process.env.callRateDuration))
 function fetchThrottle (...params) {
-  return throttle(() => { return fetch(...params) })
+  if (parseInt(process.env.callRateNrCalls) === 0) {
+    return fetch(...params)
+  } else {
+    return throttle(() => { return fetch(...params) })
+  }
 }
 
 let log = function () {}
