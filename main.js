@@ -22,15 +22,35 @@ if (process.env.ftpProtocol === 'sftp') {
 }
 
 // get the udata string for a given input file name
+// inspired by the python package awesome-slugify, used in udata to normalize file names
+// https://github.com/voronind/awesome-slugify/blob/master/slugify/main.py
 function toODPNames (name) {
-  return Path.basename(name).toLowerCase().replaceAll(' ', '-').replaceAll('_', '-').replace(/--+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  name = Path.basename(name)
+
+  // remove accents
+  name = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  // to lowercase
+  name = name.toLowerCase()
+  // remove ' and trim()
+  name = name.replaceAll('\'', '').trim()
+
+  // split by unwanted chars
+  const unwanted = /[^[A-Za-z0-9.]+/
+  const words = name.split(unwanted)
+  // remove empty words
+
+  // merge with dashes
+  name = words.join('-')
+
+  return name
 }
 
 function getFilenameFromURL (url) {
   const pathName = new URL(url).pathname
-  return pathName.substring(pathName.lastIndexOf('/') + 1)
+  return Path.basename(pathName)
 }
 
+// get the metadata for a specific resource based on its filename
 function getResourceMeta (filename, resources) {
   const resource = resources.filter(e => { return getFilenameFromURL(e.url) === filename })
   if (resource.length === 0) {
@@ -42,39 +62,167 @@ function getResourceMeta (filename, resources) {
   return resource[0]
 }
 
+// there can be duplicates on FTP (ex: same file name in different folders)
+// this can cause issues in the sync process, so we need to remove them
+// none of the duplicate files will be synchronized, the problem needs to be solved upstream
+function removeDuplicatesOnFTP (files) {
+  const test = {}
+  files.forEach(e => {
+    const fileName = Path.basename(e.name)
+    if (test[fileName] === undefined) {
+      test[fileName] = [e]
+    } else {
+      test[fileName].push(e)
+    }
+  })
+  const duplicateKeys = []
+  Object.keys(test).forEach(k => {
+    if (test[k].length > 1) {
+      console.error('Duplicates found on FTP for', k)
+      console.error(test[k])
+      process.exitCode = 1
+      duplicateKeys.push(k)
+    }
+    test[k] = test[k][0]
+  })
+  duplicateKeys.forEach(k => {
+    delete test[k]
+  })
+  return Object.values(test)
+}
+
+// there can be duplicates on ODP (ex: upload issues, manual upload)
+// detect and remove them
+// heuristics: we keep the latest one based on the last modified date. The sync process will check afterwards if this file should be updated.
+async function removeDuplicatesOnODP (dest) {
+  const dataset = await odp.getDataset(dest)
+  const resources = dataset.resources
+  const test = {}
+  resources.forEach(e => {
+    const fileName = getFilenameFromURL(e.url)
+    if (test[fileName] === undefined) {
+      test[fileName] = [e]
+    } else {
+      test[fileName].push(e)
+    }
+  })
+  Object.keys(test).forEach(k => {
+    if (test[k].length > 1) {
+      console.error('Duplicates found on ODP for', k)
+      process.exitCode = 1
+      test[k] = test[k].sort((a, b) => { return b.last_modified - a.last_modified })
+      test[k].shift()
+    } else {
+      test[k] = []
+    }
+  })
+  const toDelete = Object.values(test).reduce((acc, cur) => acc.concat(cur), [])
+  for (const e of toDelete) {
+    // delete resource
+    const result = await odp.deleteResource(dest, e.id)
+
+    // display status
+    log('Resource deletion', (result) ? 'succeeded' : 'failed', 'for', e.url)
+  }
+}
+
+// there can be collisions on filenames, because the ODP normalizes the file names
+// detect these collisions and return a mapping filename on ODP => file without collisions
+function getMappingAndDetectCollisions (files) {
+  const mapping = {}
+  files.forEach(e => {
+    const fileName = toODPNames(Path.basename(e.name))
+    if (mapping[fileName] === undefined) {
+      mapping[fileName] = [e]
+    } else {
+      mapping[fileName].push(e)
+    }
+  })
+  const duplicateKeys = []
+  Object.keys(mapping).forEach(k => {
+    if (mapping[k].length > 1) {
+      console.error('Error: name collision found for', k)
+      process.exitCode = 1
+      console.error(mapping[k].map(e => e.name))
+      duplicateKeys.push(k)
+    }
+    mapping[k] = mapping[k][0]
+  })
+  duplicateKeys.forEach(k => {
+    delete mapping[k]
+  })
+  files = files.filter(e => !duplicateKeys.includes(toODPNames(Path.basename(e.name))))
+  return [files, mapping]
+}
+
 async function sync (source, dest, ftp) {
-  console.log('uploading all files in ' + source + ' to dataset id ' + dest)
-  // udata is transforming all file names to its own format
-  let fileNamesOnFTP = await ftp.list(source)
+  // manage the case where a destination in the config file can have multiple source paths in an array
+  let dataset = await odp.getDataset(dest)
+  let filesOnFTP = []
+  if (typeof source === 'string') {
+    log('--- Uploading all files in ', source, ' to dataset ', dataset.title)
+    filesOnFTP = await ftp.list(source)
+  } else if (Array.isArray(source)) {
+    log('--- Uploading all files in ', source.join(';'), ' to dataset ', dataset.title)
+    for (const s of source) {
+      filesOnFTP = filesOnFTP.concat(await ftp.list(s))
+    }
+  } else {
+    throw new Error('Error: Configuration issue, unknown source type')
+  }
 
   if (process.env.demo === 'true') {
-    fileNamesOnFTP = fileNamesOnFTP.slice(0, 10)
+    filesOnFTP = filesOnFTP.slice(0, 10)
   }
-
-  const caseInsensitiveFilesOnFTP = fileNamesOnFTP.map(e => toODPNames(e.name))
-  const mapping = {}
-  fileNamesOnFTP.forEach(e => {
-    mapping[toODPNames(e.name)] = e
-  })
-
-  const dataset = await odp.getDataset(dest)
-  const filesOnODP = new Set(dataset.resources.map(e => e.title))
-
-  let toAdd = [...new Set(caseInsensitiveFilesOnFTP.filter(x => !filesOnODP.has(x)))]
 
   if (process.env.ftpRegex !== undefined) {
-    toAdd = toAdd.filter(x => x.match(process.env.ftpRegex))
+    filesOnFTP = filesOnFTP.filter(x => Path.basename(x.name).match(process.env.ftpRegex))
   }
+
+  log('NR of files on FTP before cleanup:', filesOnFTP.length)
+  // remove duplicates and manage name collisions
+  filesOnFTP = removeDuplicatesOnFTP(filesOnFTP)
+  const tmp = getMappingAndDetectCollisions(filesOnFTP)
+  filesOnFTP = tmp[0]
+  const mapping = tmp[1]
+
+  const caseInsensitiveFilesOnFTPArr = filesOnFTP.map(e => toODPNames(e.name))
+  const caseInsensitiveFilesOnFTPSet = new Set(caseInsensitiveFilesOnFTPArr)
+  const nrFilesOnFTP = caseInsensitiveFilesOnFTPSet.size
+  log('NR of files on FTP after cleanup:', nrFilesOnFTP)
+
+  await removeDuplicatesOnODP(dest)
+
+  // compute list of files to add, to update and to delete
+  const filesOnODPArr = dataset.resources.map(e => getFilenameFromURL(e.url))
+  const filesOnODPSet = new Set(filesOnODPArr)
+
+  let toAdd = [...new Set(caseInsensitiveFilesOnFTPArr.filter(x => !filesOnODPSet.has(x)))]
+
   // sort files by modification date
   toAdd = toAdd.sort((a, b) => { return mapping[a].modifyTime - mapping[b].modifyTime })
 
   let toUpdate = []
   if (process.env.overwrite === 'true') {
-    toUpdate = [...new Set(caseInsensitiveFilesOnFTP.filter(x => filesOnODP.has(x)))]
+    toUpdate = [...new Set(caseInsensitiveFilesOnFTPArr.filter(x => filesOnODPSet.has(x)))]
   }
+
+  let toDelete = []
+  toDelete = [...new Set(filesOnODPArr.filter(x => !caseInsensitiveFilesOnFTPSet.has(x)))]
 
   log('Files to add:', toAdd)
   log('Files to update:', toUpdate)
+  log('Files to delete:', toDelete)
+  for (const e of toDelete) {
+    // get Meta
+    const meta = getResourceMeta(e, dataset.resources)
+
+    // delete resource
+    const result = await odp.deleteResource(dest, meta.id)
+
+    // display status
+    log('Resource deletion', (result) ? 'succeeded' : 'failed', 'for', e)
+  }
   for (const e of toAdd) {
     // get file
     const file = await ftp.get(mapping[e].name)
@@ -101,7 +249,7 @@ async function sync (source, dest, ftp) {
       const hash = crypto.createHash(algo)
       hash.update(file)
       const fileHash = hash.digest('hex')
-      // console.log(odpHash, fileHash)
+
       if (odpHash === fileHash) {
         update = false
         log('File ' + e + ' is already up to date.')
@@ -122,6 +270,13 @@ async function sync (source, dest, ftp) {
       log('Resource update', (status) ? 'succeeded' : 'failed', 'for', e)
     }
   }
+
+  // check if the NR of files on ODP is consistent with what is on FTP
+  dataset = await odp.getDataset(dest)
+  const nrFilesOnODP = dataset.resources.length
+  if (nrFilesOnODP !== nrFilesOnFTP) {
+    throw new Error(`Error: different number of files after sync, ODP: ${nrFilesOnODP}, FTP: ${nrFilesOnFTP}`)
+  }
 }
 
 async function main () {
@@ -135,10 +290,10 @@ async function main () {
 
   if (process.env.ftpMapping === 'true') {
     const mapping = JSON.parse(readFileSync('./mapping.json'))
-    const sources = Object.keys(mapping)
-    for (let i = 0; i < sources.length; i++) {
-      const source = sources[i]
-      const dest = mapping[source]
+    const dests = Object.keys(mapping)
+    for (let i = 0; i < dests.length; i++) {
+      const dest = dests[i]
+      const source = mapping[dest]
       await sync(source, dest, ftp)
     }
   } else {
