@@ -134,14 +134,19 @@ async function updateResourceMeta (dsId, resId, title, desc) {
 
 async function deleteResource (dsId, resId) {
   try {
-    const res = await fetchThrottle(`${odpURL}/datasets/${dsId}/resources/${resId}/`, {
+    const params = {
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
         'X-API-KEY': odpAPIKey
       },
       method: 'DELETE'
-    })
+    }
+    if (proxyAgent !== null) {
+      params.agent = proxyAgent
+    }
+
+    const res = await fetchThrottle(`${odpURL}/datasets/${dsId}/resources/${resId}/`, params)
     return res.status === 204
   } catch (e) {
     console.error(e)
