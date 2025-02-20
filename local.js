@@ -15,7 +15,7 @@ async function list (path) {
   dirents.forEach((v, i) => {
     result.push({ name: path + '/' + v, type: stats[i].isFile() ? 'f' : (stats[i].isDirectory() ? 'd' : 'o'), modifyTime: stats[i].mtime })
   })
-  return baseNames(result)
+  return result
 }
 
 function get (path) {
