@@ -15,10 +15,5 @@ elif [[ "$OSTYPE" == "win32" ]]; then
         node_cmd="node.exe"
 fi
 
-until $node_cmd main.js >> ./log.txt 2>&1 || alert "${PWD##*/}" log.txt
-do
-    echo "Restarting..."
-    sleep 1
-done
-
+$node_cmd main.js >> ./log.txt 2>&1 || alert "${PWD##*/}" log.txt
 
