@@ -18,6 +18,7 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 - ftpPass: password
 - ftpPath: absolute path to the folder to be synced
 - ftpRegex: Optional. Define a regex to filter the filenames you want to be synced.
+- odpRegex: Optional. Define a regex to filter the filenames you want to be synced. Both ftpRegex and odpRegex are needed, since the Open data portal rewrites some characters in names (for example: "_" in a filename is replaced by "-")
 - ftpProtocol: one of the supported protocols: sftp or ftps or local for local files
 - ftpMapping: if true, the script will load from the file mapping.json multiple couples (ftpPath, idpDatasetId). They should be stored in mapping.json like the following `{"destination id 1": "source path 1", "destination id 2": ["source path 2", "source path 3"], ...}`. When this option is in use, the variables odpDatasetId and ftpPath are inactive.
 - mimeType: MIME type of the files which are synced.
@@ -38,6 +39,8 @@ The script named `run-win.sh` launches the synchronization on Windows and create
 The synchronisation only works if there are no duplicates, which can appear if the recursive mode is activated.
 The open data portal will rename files to avoid download issues. This can lead to name collisions.
 In the case of duplicates or name collisions, the concerned files will not be synchronised.
+If some files need to be kept in the dataset and are not available on the ftp (ex: documentation), please tag the files with another type than "primary file".
+All files that are not primary files will be simply ignored in the synchronisation.
 
 ## License
 This software is (c) [Information and press service](https://sip.gouvernement.lu/en.html) of the luxembourgish government and licensed under the MIT license.

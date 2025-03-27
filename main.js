@@ -195,9 +195,9 @@ async function sync (source, dest, ftp) {
   await removeDuplicatesOnODP(dest)
 
   // compute list of files to add, to update and to delete
-  let filesOnODPArr = dataset.resources.map(e => getFilenameFromURL(e.url))
-  if (process.env.ftpRegex !== undefined) {
-    filesOnODPArr = filesOnODPArr.filter(x => x.match(process.env.ftpRegex))
+  let filesOnODPArr = dataset.resources.filter(x => x.type == 'main').map(e => getFilenameFromURL(e.url))
+  if (process.env.odpRegex !== undefined) {
+    filesOnODPArr = filesOnODPArr.filter(x => x.match(process.env.odpRegex))
   }
   const filesOnODPSet = new Set(filesOnODPArr)
 
@@ -288,9 +288,9 @@ async function sync (source, dest, ftp) {
 
   // check if the NR of files on ODP is consistent with what is on FTP
   dataset = await odp.getDataset(dest)
-  let filesOnODP = dataset.resources.map(e => getFilenameFromURL(e.url))
-  if (process.env.ftpRegex !== undefined) {
-    filesOnODP = filesOnODP.filter(x => x.match(process.env.ftpRegex))
+  let filesOnODP = dataset.resources.filter(x => x.type == 'main').map(e => getFilenameFromURL(e.url))
+  if (process.env.odpRegex !== undefined) {
+    filesOnODP = filesOnODP.filter(x => x.match(process.env.odpRegex))
   }
 
 
