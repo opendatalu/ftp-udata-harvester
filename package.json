@@ -15,6 +15,7 @@
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
     "ssh2-sftp-client": "^9.0.4",
+    "proxy-from-env": "^1.1.0",
     "throttled-queue": "^2.1.4"
   },
   "devDependencies": {

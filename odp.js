@@ -2,6 +2,7 @@ import dotenv from 'dotenv'
 import { fetchThrottle, log } from './utils.js'
 import { FormData, File } from 'node-fetch'
 import { HttpsProxyAgent } from 'https-proxy-agent'
+import ProxyFromEnv from 'proxy-from-env'
 
 dotenv.config()
 
@@ -24,7 +25,7 @@ async function getDataset (id) {
       },
       method: 'GET'
     }
-    if (proxyAgent !== null) {
+    if (proxyAgent !== null && ProxyFromEnv.getProxyForUrl(odpURL)) {
       params.agent = proxyAgent
     }
     const res = await fetchThrottle(odpURL + '/datasets/' + id + '/', params)
@@ -58,7 +59,7 @@ async function uploadResource (filename, data, dsId, mime) {
       method: 'POST'
     }
 
-    if (proxyAgent !== null) {
+    if (proxyAgent !== null && ProxyFromEnv.getProxyForUrl(odpURL)) {
       params.agent = proxyAgent
     }
 
@@ -91,7 +92,7 @@ async function updateResource (filename, data, dsId, resourceId, mime) {
       body: formData,
       method: 'POST'
     }
-    if (proxyAgent !== null) {
+    if (proxyAgent !== null && ProxyFromEnv.getProxyForUrl(odpURL)) {
       params.agent = proxyAgent
     }
     const res = await fetchThrottle(`${odpURL}/datasets/${dsId}/resources/${resourceId}/upload/`, params)
@@ -118,7 +119,7 @@ async function updateResourceMeta (dsId, resId, title, desc) {
       body: JSON.stringify(body),
       method: 'PUT'
     }
-    if (proxyAgent !== null) {
+    if (proxyAgent !== null && ProxyFromEnv.getProxyForUrl(odpURL)) {
       params.agent = proxyAgent
     }
     const res = await fetchThrottle(`${odpURL}/datasets/${dsId}/resources/${resId}/`, params)
@@ -142,7 +143,7 @@ async function deleteResource (dsId, resId) {
       },
       method: 'DELETE'
     }
-    if (proxyAgent !== null) {
+    if (proxyAgent !== null && ProxyFromEnv.getProxyForUrl(odpURL)) {
       params.agent = proxyAgent
     }
 

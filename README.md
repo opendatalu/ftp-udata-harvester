@@ -29,11 +29,13 @@ Copy the `.env.example` file into a file named `.env`. Adjust the following vari
 ## Proxy
 If your network connection depends on a proxy, you must set the `https_proxy` environment variable.
 Example: `export https_proxy="http://myproxy:8080"`
+The `no_proxy` variable is also supported to exclude a list of domains that should be used without proxy.
+Example: `export no_proxy=".etat.lu,.public.lu"`
 
 ## Run
 
 You can launch the synchronization with the command `npm run main`.
-The script named `run-win.sh` launches the synchronization on Windows and creates a log file. Bash.exe is needed, it can be found in [git for Windows](https://git-scm.com/download/win).
+The script named `run.sh` launches the synchronization on Windows or Linux and creates a log file. On Windows, bash.exe is needed, it can be found in [git for Windows](https://git-scm.com/download/win).
 
 ## Possible issues
 The synchronisation only works if there are no duplicates, which can appear if the recursive mode is activated.
