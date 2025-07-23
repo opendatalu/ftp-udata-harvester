@@ -8,7 +8,7 @@ import process from 'node:process'
 import * as odp from './odp.js'
 import Path from 'path'
 import { readFileSync } from 'fs'
-import { log } from './utils.js'
+import { log, sendDuplicateNotification } from './utils.js'
 
 // Initialize crypto module for file hash validation
 let crypto
@@ -98,7 +98,7 @@ function getResourceMeta (filename, resources) {
  * @param {Array} files - Array of file objects with .name property
  * @returns {Array} Array of unique files (duplicates removed entirely)
  */
-function removeDuplicatesOnFTP (files) {
+async function removeDuplicatesOnFTP (files) {
   // Group files by basename to detect duplicates
   const test = {}
   files.forEach(e => {
@@ -111,16 +111,27 @@ function removeDuplicatesOnFTP (files) {
   })
   // Identify and remove all files that have duplicates
   const duplicateKeys = []
+  const duplicatesForEmail = []
   Object.keys(test).forEach(k => {
     if (test[k].length > 1) {
       console.error('Error: Duplicates found on FTP for', k)
       console.error(test[k])
       process.exitCode = 1
       duplicateKeys.push(k)
+      duplicatesForEmail.push({
+        filename: k,
+        files: test[k]
+      })
     }
     // Keep only the first occurrence for unique files
     test[k] = test[k][0]
   })
+
+  // Send email notification if duplicates found
+  if (duplicatesForEmail.length > 0) {
+    await sendDuplicateNotification('On the FTP', duplicatesForEmail)
+  }
+
   // Remove all duplicate entries entirely
   duplicateKeys.forEach(k => {
     delete test[k]
@@ -150,10 +161,15 @@ async function removeDuplicatesOnODP (dest) {
     }
   })
   // Process duplicates: keep newest, mark others for deletion
+  const duplicatesForEmail = []
   Object.keys(test).forEach(k => {
     if (test[k].length > 1) {
       console.error('Error: Duplicates found on ODP for', k)
       process.exitCode = 1
+      duplicatesForEmail.push({
+        filename: k,
+        files: test[k]
+      })
       // Sort by last_modified descending, keep the newest (first after sort)
       test[k] = test[k].sort((a, b) => { return b.last_modified - a.last_modified })
       // Remove the newest from deletion list (shift removes first element)
@@ -163,6 +179,11 @@ async function removeDuplicatesOnODP (dest) {
       test[k] = []
     }
   })
+
+  // Send email notification if duplicates found
+  if (duplicatesForEmail.length > 0) {
+    await sendDuplicateNotification('On the Open data portal', duplicatesForEmail)
+  }
   // Flatten the arrays to get all resources marked for deletion
   const toDelete = Object.values(test).reduce((acc, cur) => acc.concat(cur), [])
 
@@ -181,7 +202,7 @@ async function removeDuplicatesOnODP (dest) {
  * @param {Array} files - Array of file objects
  * @returns {Array} [filteredFiles, mappingObject] - Files without collisions and filename mapping
  */
-function getMappingAndDetectCollisions (files) {
+async function getMappingAndDetectCollisions (files) {
   // Create mapping from normalized ODP names to source files
   const mapping = {}
   files.forEach(e => {
@@ -194,16 +215,26 @@ function getMappingAndDetectCollisions (files) {
   })
   // Identify collisions and remove all affected files
   const duplicateKeys = []
+  const collisionsForEmail = []
   Object.keys(mapping).forEach(k => {
     if (mapping[k].length > 1) {
       console.error('Error: name collision found for', k)
       process.exitCode = 1
       console.error(mapping[k].map(e => e.name))
       duplicateKeys.push(k)
+      collisionsForEmail.push({
+        filename: k,
+        files: mapping[k]
+      })
     }
     // For unique mappings, keep the single file
     mapping[k] = mapping[k][0]
   })
+
+  // Send email notification if collisions found
+  if (collisionsForEmail.length > 0) {
+    await sendDuplicateNotification('Name Collision', collisionsForEmail)
+  }
 
   // Remove collision entries from mapping
   duplicateKeys.forEach(k => {
@@ -254,8 +285,8 @@ async function sync (source, dest, ftp) {
   log('NR of files on FTP before cleanup:', filesOnFTP.length)
 
   // Clean up file list: remove duplicates and handle name collisions
-  filesOnFTP = removeDuplicatesOnFTP(filesOnFTP)
-  const tmp = getMappingAndDetectCollisions(filesOnFTP)
+  filesOnFTP = await removeDuplicatesOnFTP(filesOnFTP)
+  const tmp = await getMappingAndDetectCollisions(filesOnFTP)
   filesOnFTP = tmp[0]  // Files without collisions
   const mapping = tmp[1]  // Normalized name -> file mapping
 

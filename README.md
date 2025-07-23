@@ -66,6 +66,17 @@ Copy `.env.example` to `.env` and configure the following variables:
 | `callRateNrCalls` | Max API calls per period (0=unlimited) |
 | `callRateDuration` | Rate limit period (milliseconds) |
 
+### Email Configuration
+| Variable | Description |
+|----------|-------------|
+| `emailHost` | SMTP server hostname |
+| `emailPort` | SMTP server port |
+| `emailSecure` | Use TLS encryption (true/false) |
+| `emailUser` | SMTP authentication username |
+| `emailPass` | SMTP authentication password |
+| `emailFrom` | Sender email address |
+| `emailTo` | Recipient email address for notifications |
+
 ### Advanced Options
 | Variable | Description |
 |----------|-------------|
@@ -95,7 +106,7 @@ export https_proxy="http://username:password@proxy.example.com:8080"
 ```
 
 The `no_proxy` variable is also supported to exclude a list of domains that should be used without proxy.
-Example: 
+Example:
 ```bash
 export no_proxy=".etat.lu,data.public.lu"
 ```
@@ -176,11 +187,13 @@ Example: `Données_été_2023.pdf` → `donnees-ete-2023.pdf`
 - Issue: Same filename exists in different source directories
 - Solution: Resolve duplicates at source or use specific directory paths
 - Files with duplicates are excluded from sync for safety
+- An email can be sent automatically to a given email address when duplicates are found, if the email configuration variables are set.
 
 **Name Collisions**
 - Issue: Different source files normalize to same target name
 - Solution: Rename source files to avoid conflicts
 - Example: `file_1.txt` and `file-1.txt` both become `file-1.txt`
+- An email can be sent automatically to a given email address when name collisions are found, if the email configuration variables are set.
 
 **File Type Restrictions**
 - Only "main" type resources are synchronized
