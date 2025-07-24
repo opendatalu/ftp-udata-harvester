@@ -72,7 +72,7 @@ async function sendDuplicateNotification (type, duplicates) {
 
   try {
     // Create transporter with email configuration
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.emailHost,
       port: parseInt(process.env.emailPort) || 587,
       secure: process.env.emailSecure === 'true',
