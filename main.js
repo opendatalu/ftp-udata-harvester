@@ -57,6 +57,9 @@ function toODPNames (name) {
   // Merge words with dashes as separators
   name = words.join('-')
 
+  // Udata removes dashes at the beginning of filenames
+  name = name.replace(/^-+/, '')
+
   return name
 }
 
@@ -116,7 +119,6 @@ async function removeDuplicatesOnFTP (files) {
     if (test[k].length > 1) {
       console.error('Error: Duplicates found on FTP for', k)
       console.error(test[k])
-      process.exitCode = 1
       duplicateKeys.push(k)
       duplicatesForEmail.push({
         filename: k,
@@ -165,7 +167,6 @@ async function removeDuplicatesOnODP (dest) {
   Object.keys(test).forEach(k => {
     if (test[k].length > 1) {
       console.error('Error: Duplicates found on ODP for', k)
-      process.exitCode = 1
       duplicatesForEmail.push({
         filename: k,
         files: test[k]
@@ -219,7 +220,6 @@ async function getMappingAndDetectCollisions (files) {
   Object.keys(mapping).forEach(k => {
     if (mapping[k].length > 1) {
       console.error('Error: name collision found for', k)
-      process.exitCode = 1
       console.error(mapping[k].map(e => e.name))
       duplicateKeys.push(k)
       collisionsForEmail.push({
